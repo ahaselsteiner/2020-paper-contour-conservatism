@@ -1,3 +1,6 @@
 [submodule "compute-hdc"]
     path = compute-hdc
     url = https://github.com/ahaselsteiner/compute-hdc.git
+[submodule "exponentiated-weibull"]
+    path = exponentiated-weibull
+    url = https://github.com/ahaselsteiner/exponentiated-weibull.git

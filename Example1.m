@@ -7,8 +7,8 @@ ts = 6; % Sea state duration in hours.
 alpha = 1 / (tr * 365.25 * 24 / ts);
 tzToTpFactor = 1.2796;
 
-thisFolderName = '2020-exclude-non-severe-conditions';
-addpath('compute-hdc')
+thisFolderName = '2020-paper-contour-conservatism';
+addpath([thisFolderName '/compute-hdc'])
 addpath([thisFolderName '/example1-subfunctions'])
 
 dhs = 0.1;

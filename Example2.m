@@ -4,9 +4,9 @@ tr = 50; % Return period in years.
 ts = 1; % Environmental state duration in hours.
 alpha = 1 / (tr * 365.25 * 24 / ts);
 
-thisFolderName = '2020-exclude-non-severe-conditions';
-addpath('compute-hdc')
-addpath('exponentiated-weibull')
+thisFolderName = '2020-paper-contour-conservatism';
+addpath([thisFolderName '/compute-hdc'])
+addpath([thisFolderName '/exponentiated-weibull'])
 addpath([thisFolderName '/example2-subfunctions'])
 
 du = 0.1;
