@@ -6,7 +6,7 @@ environmental contours' by Andreas F. Haselsteiner, Ed Mackay and Klaus-Dieter T
 ## Download and use the repository
 To download this repository and its submodules use
 ```console
-git clone --recurse-submodules https://github.com/ahaselsteiner/XXX
+git clone --recurse-submodules https://github.com/ahaselsteiner/2020-paper-contour-conservatism
 ```
 
 It holds two main Matlab scripts:
