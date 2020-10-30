@@ -1,17 +1,12 @@
-x = A.Tz;
-y = A.Hs;
-
-%[xnew, ynew] = meshgrid(linspace(0, 20, 100));
-%znew = interp2(x, y, z, xnew, ynew, 'spline');
+x = A.Tz(1:1:end);
+y = A.Hs(1:1:end);
 
 figure
-scatter(x, y, 'k.')
-hold on
-bins = 50;
-[n, c] = hist3([x, y], [bins bins]);
-contour(c{1}, c{2}, n', [25, 50, 100, 200])
+binscatter(x, y, [200 200])
 xlim([0 1.1 * max(x)]);
 ylim([0 1.1 * max(y)]);
 xlabel('Zero-up-crossing period (s)');
 ylabel('Significant wave height (m)');
+colormap(gca,'parula')
 box off
+colorbar off

@@ -130,7 +130,6 @@ for i = 1 : length(hsThresholds)
     plot(tzHd, hsHd, '-b', 'linewidth', 2)
 
     % Plot the adjusted HD contour.
-
     plot(adjustedCtz, adjustedChs, '-r', 'linewidth', 2)
     plot(Ctz, Chs, '--r')
     
@@ -178,7 +177,7 @@ for i = 1 : length(hsThresholds)
         consevatismFactorPf = [alpha / pfNormal; alpha / pfAdjusted;];
     else
         c = 1;
-        method{i + c} = 'All sea states';
+        method{i + c} = 'Adjusted HD contour';
         mildRegionHsMax(i + c) = max(polygonHs);
         maxHs(i + c) = max(Chs);
         maxResponse(i + c)=  maxRAdjusted;
@@ -189,6 +188,20 @@ for i = 1 : length(hsThresholds)
     end
 end
 c = 2;
+fun = @(tz) Fygivenx(tz, Hsn) - 0.5;
+medianTz = fzero(fun, 10);
+reseponseHsn = responseTwoPeaks(Hsn, medianTz * tzToTpFactor);
+pfMarg = 1 - longTermResponseCdfE1TwoPeaks(reseponseHsn);
+method{i + c} = 'H_{s50} and median T_z|H_{s50}';
+mildRegionHsMax(i + c) = NaN;
+maxHs(i + c) = Hsn;
+maxResponse(i + c)=  reseponseHsn;
+maxResponseHs(i + c) = Hsn;
+maxResponseTp(i + c) = medianTz;
+consevatismFactorR(i + c) = reseponseHsn / responseAllSeaStates;
+consevatismFactorPf(i + c) = alpha / pfMarg;
+
+c = 3;
 method{i + c} = 'All sea states';
 mildRegionHsMax(i + c) = NaN;
 maxHs(i + c) = NaN;
