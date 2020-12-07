@@ -9,16 +9,13 @@ addpath([thisFolderName '/compute-hdc'])
 addpath([thisFolderName '/exponentiated-weibull'])
 addpath([thisFolderName '/example2-subfunctions'])
 
-du = 0.1;
+du = 0.05;
 dhs = du;
 cellSize = du * dhs;
 
 % Results from different grid resolutions:
-% with polygonU =  [0 29 29 10 0]; polygonHs = [0 0  6  3  3];
-% du = [0.5, 0.1, 0.05, 0.01, 0.005]; dhs = du;
-% fc = [3.9615e-04, NaN, 2.5800e-07, 1.1896e-07, X]
-% Results using estimatefxybar:
-% fc = [1.0519e-07, 1.0509e-07, 1.0561e-07, X, X, X, X]
+% du = [0.5,        0.1,        0.05,         0.01]; dhs = du;
+% fc = [1.1159e-07, 1.1272e-07, 1.1332e-07,   1.1339e-07]
 
 u = du/2 : du : 40;
 hs = dhs/2 : dhs : 25;
@@ -27,10 +24,14 @@ uCell = u(1 : end - 1) + (u(2) - u(1)) / 2;
 hsCell = hs(1 : end - 1) + (hs(2) - hs(1)) / 2;
 [UCELL, HSCELL] = meshgrid(uCell, hsCell);
 
-polygonU =  [0 28.6 28.6 5  5     0    ];
-polygonHs = [0 0    8    2  8    8];
-
-
+v_in = 3;
+V50 = 28.6;
+Hs50 = 13.87;
+hsMedian = @(v) 0.488 + 0.0114 * v.^2.03;
+polygonU_Mid  = [V50, floor(V50) : -1 : v_in];
+polygonHs_Mid = hsMedian(polygonU_Mid);
+polygonU =  [0 V50  polygonU_Mid   v_in      0       ];
+polygonHs = [0 0    polygonHs_Mid  0.5*Hs50  0.5*Hs50];
 
 disp('Evaluating fxy in the variable space ...')
 fxy = pdfU10Hs(U, HS);
@@ -39,15 +40,12 @@ if DO_USE_FXBAR == 1
     betahs = @(u) 0.714 + 1.70 ./ (1 + exp(-1 * 0.304 * (u - 8.77)));
     alphahs = @(u) (0.488 + 0.0114 * u.^2.03) ./ 2.0445.^(1 ./ betahs(u));
     Fygivenx = @(y, x) (y>0) * (1 - exp( -1 .* (y ./ alphahs(x)).^betahs(x))).^5;
-    %expWblPdf = @(x, alpha, beta, delta) delta .* beta ./ alpha .* (x ./ alpha).^(beta - 1) ...
-    %    .* (1 - exp(-1 * (x ./ alpha).^beta)).^(delta - 1) .* exp(-1 .* (x ./ alpha).^beta);
     E = ExponentiatedWeibull;
     expWblPdf = @(x, alpha, beta, delta) E.pdf(x, alpha, beta, delta);
     funfxy = @(x, y) expWblPdf(x, 10.0, 2.42, 0.761) .* expWblPdf(y, alphahs(x), betahs(x), 5);
     
     Ftot = integral2(funfxy, 0, max(u), 0, max(hs), 'RelTol', 1e-16);
     disp(['In Example 2: 1 - the full integral2 should be 0 and was ' num2str(1 - Ftot)]);
-    %fxybar = computefxybar(HS, TZ, funfxy);
     fxybar = estimatefxybar(U, HS, Fx, Fygivenx);
     disp(['In Example 2: 1 - the sum of all fxybar should be 0 and was ' num2str(1 - sum(sum(fxybar .* cellSize)))]);
 
@@ -57,16 +55,11 @@ if DO_USE_FXBAR == 1
     hs = hsCell;
     U = UCELL;
     HS = HSCELL;
-
-    %figure
-    %surf(UCELL', HSCELL', fxybar')
-    %xlabel('Wind speed (m/s)');
-    %ylabel('Significant wave height (m)');
 end
 
 
 %figure
-%contour(u, hs, fxy, [10^-6 10^-5 10^-4 10^-4 10^-3 10^-2])
+%contour(u, hs, fxy, [10^-8 10^-7 10^-6 10^-5 10^-4 10^-4 10^-3 10^-2])
 
 
 [P, uInside, hsInside] = unionRhdRm(U, HS, fxy, 0, polygonU, polygonHs);
@@ -86,8 +79,8 @@ Chs = C(2,2:end);
 isInRm = inpolygon(Cu, Chs, polygonU, polygonHs);
 CuRel = Cu(~isInRm);
 ChsRel = Chs(~isInRm);
-CuRel = [polygonU(1) polygonU(2) CuRel polygonU(5) polygonU(6) polygonU(1)];
-ChsRel = [polygonHs(1) polygonHs(2) ChsRel polygonHs(5) polygonHs(6) polygonHs(1)];
+CuRel = [polygonU(1) polygonU(2) CuRel polygonU(end-1) polygonU(end) polygonU(1)];
+ChsRel = [polygonHs(1) polygonHs(2) ChsRel polygonHs(end-1) polygonHs(end) polygonHs(1)];
 
 % Now calculate a "normal HD contour" using the compute-hdc software
 % package.
@@ -107,15 +100,12 @@ PM.labels = {'Wind speed (m/s)';
     'Significant wave height (m)'};
 PM.gridCenterPoints = {0.05:0.1:50; 0.05:0.1:30};
 [fcnormal, uHd, hsHd] = computeHdc(PM, alpha, PM.gridCenterPoints, 0);
-%uHd = uHd{1};
-%hsHd = hsHd{1};
 C = contourc(u, hs, fxy, [fcnormal, fcnormal]);
 uHd = C(1,2:end);
 hsHd = C(2,2:end);
 
 
 fig = figure();
-%scatter(tzInside, hsInside, '.k');
 pgon = polyshape(polygonU, polygonHs);
 plot(pgon);
 hold on
@@ -144,7 +134,7 @@ plot([0 max(u)], [Hsn, Hsn], '--k');
 
 legend({'Mild region', 'Normal HD contour', ...
     'Adjusted HD contour', 'Boarder of HD region within the mild region', ...
-    'Marginal return values U_{50} and H_{s50}'}, ...
+    'Marginal return values V_{50} and H_{s50}'}, ...
     'location', 'southoutside', 'NumColumns', 2);
 legend box off
 

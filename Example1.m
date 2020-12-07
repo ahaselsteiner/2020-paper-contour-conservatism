@@ -11,17 +11,8 @@ thisFolderName = '2020-paper-contour-conservatism';
 addpath([thisFolderName '/compute-hdc'])
 addpath([thisFolderName '/example1-subfunctions'])
 
-dhs = 0.1;
+dhs = 0.05;
 dtz = dhs;
-% Results from different grid resolutions:
-% with polygonHs = [0 0 2 2]; polygonTz = [0 20 20 0];
-% dhs = [0.5, 0.1, 0.05, 0.01, 0.005, 0.002, 0.0001]; dhs = du;
-% Results using fxy (and not fxybar):
-% fc = [NaN, 2.7825e-05, NaN, 2.5129e-06, 9.5934e-07, 2.0294e-06, script throws error]
-% Results using computefxybar:
-% fc = [1.701e-06, 4.653370166672485e-06, X, X, X, X, X]
-% Results using estimatefxybar:
-% fc = [1.825e-06, 1.831e-06, 1.825e-06, X, X, X, X]
 
 hs = dhs/2 : dhs : 30;
 tz = dhs/2 : dtz : 25;
@@ -40,7 +31,6 @@ if DO_USE_FXBAR == 1
     
     Ftot = integral2(funfxy, 0, max(hs), 0, max(tz), 'Method', 'iterated', 'RelTol', 1e-16);
     disp(['In Example 1: 1 - the full integral should be 0 and was ' num2str(1 - Ftot)]);
-    %fxybar = computefxybar(HS, TZ, funfxy);
     fxybar = estimatefxybar(HS, TZ, Fx, Fygivenx);
 
     % To be compatible with the rest of the code
@@ -49,17 +39,26 @@ if DO_USE_FXBAR == 1
     tz = tzCell;
     HS = HSCELL;
     TZ = TZCELL;
-
-    %figure
-    %surf(TZCELL', HSCELL', fxybar')
-    %xlabel('Zero-up-crossiong period (s)');
-    %ylabel('Significant wave height (m)');
 end
 
+%figure
+%contour(tz, hs, fxy', [10^-10 10^-9 10^-8 10^-7 10^-6 10^-5 10^-4 10^-4 10^-3 10^-2])
+c = contourc(tz, hs, fxy', [10^-9 10^-9]);
+bLeft = [c(1,2:floor(length(c)/2)); c(2,2:floor(length(c)/2))];
+bRight = [c(1,floor(length(c)/2):end); c(2,floor(length(c)/2):end)];
+bRight = [bRight(1, bRight(2,:)>1.5); bRight(2, bRight(2,:)>1.5)];
+bRight = flipud(bRight')';
+maxTz = bRight(1,1);
+minTz = min(bLeft(1,:));
 for i = 1 : length(hsThresholds)
-    hsThreshold = hsThresholds(i); 
-    polygonHs = [0 0 hsThreshold hsThreshold];
-    polygonTz = [0 15 15 0];
+    hsThreshold = hsThresholds(i);
+    bL = [bLeft(1, bLeft(2,:)<hsThreshold); bLeft(2, bLeft(2,:)<hsThreshold)];
+    bL = flipud(bL')';
+    bL = [bL(1,:), minTz; bL(2,:), 0];
+    bR = [bRight(1, bRight(2,:)<hsThreshold); bRight(2, bRight(2,:)<hsThreshold)];
+    bR = [maxTz, bR(1,:); 0, bR(2,:)];
+    polygonHs = [0     bR(2,:) bL(2,:)];
+    polygonTz = [minTz bR(1,:) bL(1,:)];
 
     [P, hsInside, tzInside] = unionRhdRm(HS, TZ, fxy, 0, polygonHs, polygonTz);
     disp(['1 - integrating over the whole variable space should yield 0 and was ' num2str(1 - P)]);
@@ -79,8 +78,8 @@ for i = 1 : length(hsThresholds)
     % Add the mild region's boundary.
     TzMildRUpper = [CtzRel(end) : -0.5 : polygonTz(4) polygonTz(4)];
     HsMildRUpper = zeros(1, length(TzMildRUpper)) + polygonHs(4);
-    adjustedCtz = [polygonTz(1) polygonTz(2) polygonTz(3) CtzRel TzMildRUpper polygonTz(1)];
-    adjustedChs = [polygonHs(1) polygonHs(2) polygonHs(3) ChsRel HsMildRUpper polygonHs(1)];
+    adjustedCtz = [minTz bR(1,:) CtzRel bL(1,:)];
+    adjustedChs = [0     bR(2,:) ChsRel bL(2,:)];
 
     % Now calculate a "normal HD contour" using the compute-hdc software
     % package.
