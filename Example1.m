@@ -43,12 +43,11 @@ end
 
 %figure
 %contour(tz, hs, fxy', [10^-10 10^-9 10^-8 10^-7 10^-6 10^-5 10^-4 10^-4 10^-3 10^-2])
+
 c = contourc(tz, hs, fxy', [10^-9 10^-9]);
 bLeft = [c(1,2:floor(length(c)/2)); c(2,2:floor(length(c)/2))];
 bRight = [c(1,floor(length(c)/2):end); c(2,floor(length(c)/2):end)];
-bRight = [bRight(1, bRight(2,:)>1.5); bRight(2, bRight(2,:)>1.5)];
 bRight = flipud(bRight')';
-maxTz = bRight(1,1);
 minTz = min(bLeft(1,:));
 for i = 1 : length(hsThresholds)
     hsThreshold = hsThresholds(i);
@@ -56,6 +55,9 @@ for i = 1 : length(hsThresholds)
     bL = flipud(bL')';
     bL = [bL(1,:), minTz; bL(2,:), 0];
     bR = [bRight(1, bRight(2,:)<hsThreshold); bRight(2, bRight(2,:)<hsThreshold)];
+    [maxTz, idx] = max(bR(1,:));
+    bRMinHs = bR(2, idx);
+    bR = [bR(1, bR(2,:) >= bRMinHs); bR(2, bR(2,:) >= bRMinHs)];
     bR = [maxTz, bR(1,:); 0, bR(2,:)];
     polygonHs = [0     bR(2,:) bL(2,:)];
     polygonTz = [minTz bR(1,:) bL(1,:)];
@@ -64,11 +66,11 @@ for i = 1 : length(hsThresholds)
     disp(['1 - integrating over the whole variable space should yield 0 and was ' num2str(1 - P)]);
 
     fun = @(f) unionRhdRm(HS, TZ, fxy, f, polygonHs, polygonTz) - (1 - alpha);
-    fc = fzero(fun, 0.001);
-    [P, hsInside, tzInside] = unionRhdRm(HS, TZ, fxy, fc, polygonHs, polygonTz);
+    fm = fzero(fun, 0.001);
+    [P, hsInside, tzInside] = unionRhdRm(HS, TZ, fxy, fm, polygonHs, polygonTz);
 
-    % Compute the adjusted contour using the found fc value.
-    C = contourc(hs, tz, fxy, [fc, fc]);
+    % Compute the adjusted contour using the found fm value.
+    C = contourc(hs, tz, fxy, [fm, fm]);
     Chs = C(1,2:end);
     Ctz = C(2,2:end);
     isInRm = inpolygon(Ctz, Chs, polygonTz, polygonHs);
@@ -98,8 +100,9 @@ for i = 1 : length(hsThresholds)
                                  'Zero-up-crossing period (s)'};
     PM.gridCenterPoints = {0:0.05:20; 0:0.05:18};
     [fcnormal, hsHd, tzHd] = computeHdc(PM, alpha, PM.gridCenterPoints, 0);
-    %hsHd = hsHd{1};
-    %tzHd = tzHd{1};
+    
+    % To achieve smoother contour coordinates, use Matlab's contour function.
+    % instead of using computeHDC's hsHd{1}, tzHd{1}.
     C = contourc(hs, tz, fxy, [fcnormal, fcnormal]);
     hsHd = C(1,2:end);
     tzHd = C(2,2:end);
@@ -113,42 +116,28 @@ for i = 1 : length(hsThresholds)
     rHdAdjusted = responseTwoPeaks(adjustedChs, tpAdjusted);
     [maxRAdjusted, iMaxAdjusted] = max(rHdAdjusted);
     
-
+    % Plot the two contours, the mild regions and Hs50.
     fig = figure();
-    %scatter(tzInside, hsInside, '.k');
     pgon = polyshape(polygonTz, polygonHs);
     plot(pgon);
     hold on
-    xlabel('Zero-up-crossing period (s)');
-    ylabel('Significant wave height (m)');
-
-    % Plot the normal HD contour. To have a smoother plot, use Matlab's contour
-    % function.
-    %plot(tzHd, hsHd, '-b', 'linewidth', 2)
-    %contour(tz, hs, fxy', [fcnormal, fcnormal], '-b', 'linewidth', 2);
     plot(tzHd, hsHd, '-b', 'linewidth', 2)
-
-    % Plot the adjusted HD contour.
     plot(adjustedCtz, adjustedChs, '-r', 'linewidth', 2)
     plot(Ctz, Chs, '--r')
-    
     plot(adjustedCtz(iMaxAdjusted), adjustedChs(iMaxAdjusted), 'xr', ...
     'markersize', 10, 'linewidth', 2);
-
-    % Plot the univariate return value
     Hsn = wblinv(1 - alpha, 2.776, 1.471) + 0.8888;
     plot([0 max(tz)], [Hsn, Hsn], '--k');
-
     r = responseTwoPeaks(HS, TZ * tzToTpFactor);
     [C, h] = contour(tz, hs, r', [5 10 15 17 20 25 30 35 40], 'color', [0.5 0.5 0.5]);
     clabel(C, h, 'FontSize', 6, 'Color', [0.5 0.5 0.5])
-
+    xlabel('Zero-up-crossing period (s)');
+    ylabel('Significant wave height (m)');
     legend({'Mild region', 'Normal HD contour', ...
-        'Adjusted HD contour', 'border of HD region within the mild region', ...
+        'Adjusted HD contour', 'Boundary of HD region within mild region', ...
         'Maximum response', 'H_{s50}', 'Constant response'}, ...
         'location', 'southoutside', 'NumColumns', 2);
     legend box off
-
     xlim([0 20]);
     ylim([0 20]);
     title([num2str(tr) '-yr environmental contours (alpha=' num2str(alpha) ')']);
@@ -167,17 +156,18 @@ for i = 1 : length(hsThresholds)
     % Create a table with the main results.
     if i == 1
         method = {'Normal HD contour'; 'Adjusted HD contour'};
-        mildRegionHsMax = [0; max(polygonHs)];
+        mildRegionHsMax = [0; hsThreshold];
         maxHs = [max(hsHd); max(Chs)];
         maxResponse = [maxRNormal; maxRAdjusted];
         maxResponseHs = [hsHd(iMaxNormal); adjustedChs(iMaxAdjusted)];
         maxResponseTp = [tpHd(iMaxNormal); tpAdjusted(iMaxAdjusted)];
-        consevatismFactorR = [maxRNormal / responseAllSeaStates; maxRAdjusted / responseAllSeaStates];
+        consevatismFactorR = [maxRNormal / responseAllSeaStates; ...
+            maxRAdjusted / responseAllSeaStates];
         consevatismFactorPf = [alpha / pfNormal; alpha / pfAdjusted;];
     else
         c = 1;
         method{i + c} = 'Adjusted HD contour';
-        mildRegionHsMax(i + c) = max(polygonHs);
+        mildRegionHsMax(i + c) = hsThreshold;
         maxHs(i + c) = max(Chs);
         maxResponse(i + c)=  maxRAdjusted;
         maxResponseHs(i + c) = adjustedChs(iMaxAdjusted);
@@ -187,18 +177,14 @@ for i = 1 : length(hsThresholds)
     end
 end
 c = 2;
-fun = @(tz) Fygivenx(tz, Hsn) - 0.5;
-medianTz = fzero(fun, 10);
-reseponseHsn = responseTwoPeaks(Hsn, medianTz * tzToTpFactor);
-pfMarg = 1 - longTermResponseCdfE1TwoPeaks(reseponseHsn);
-method{i + c} = 'H_{s50} and median T_z|H_{s50}';
+method{i + c} = 'IFORM contour';
 mildRegionHsMax(i + c) = NaN;
-maxHs(i + c) = Hsn;
-maxResponse(i + c)=  reseponseHsn;
-maxResponseHs(i + c) = Hsn;
-maxResponseTp(i + c) = medianTz;
-consevatismFactorR(i + c) = reseponseHsn / responseAllSeaStates;
-consevatismFactorPf(i + c) = alpha / pfMarg;
+maxHs(i + c) = 15.2; % see 10.1016/j.marstruc.2020.102863;
+maxResponse(i + c)=  16.57; % see 10.1016/j.marstruc.2020.102863
+maxResponseHs(i + c) = NaN;
+maxResponseTp(i + c) = NaN;
+consevatismFactorR(i + c) = 0.97; % see 10.1016/j.marstruc.2020.102863
+consevatismFactorPf(i + c) = 0.61; % see 10.1016/j.marstruc.2020.102863
 
 c = 3;
 method{i + c} = 'All sea states';
@@ -210,5 +196,6 @@ maxResponseTp(i + c) = NaN;
 consevatismFactorR(i + c) = 1;
 consevatismFactorPf(i + c) = 1;
 
-Table = table(method, mildRegionHsMax, maxHs, maxResponse, maxResponseHs, maxResponseTp, consevatismFactorR, consevatismFactorPf)
+Table = table(method, mildRegionHsMax, maxHs, maxResponse, ...
+    maxResponseHs, maxResponseTp, consevatismFactorR, consevatismFactorPf)
 

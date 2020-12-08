@@ -15,7 +15,7 @@ cellSize = du * dhs;
 
 % Results from different grid resolutions:
 % du = [0.5,        0.1,        0.05,         0.01]; dhs = du;
-% fc = [1.1159e-07, 1.1272e-07, 1.1332e-07,   1.1339e-07]
+% fm = [1.1159e-07, 1.1272e-07, 1.1332e-07,   1.1339e-07]
 
 u = du/2 : du : 40;
 hs = dhs/2 : dhs : 25;
@@ -68,11 +68,11 @@ disp(['1 - integrating over the whole variable space should yield 0 and was ' nu
 disp('Calculating the adjusted HD contour ...')
 fun = @(f) unionRhdRm(U, HS, fxy, f, polygonU, polygonHs) - (1 - alpha);
 startValue = 0.001;
-fc = fzero(fun, startValue);
-[P, uInside, hsInside] = unionRhdRm(U, HS, fxy, fc, polygonU, polygonHs);
+fm = fzero(fun, startValue);
+[P, uInside, hsInside] = unionRhdRm(U, HS, fxy, fm, polygonU, polygonHs);
 
-% Compute the adjusted contour using the found fc value.
-C = contourc(u, hs, fxy, [fc, fc]);
+% Compute the adjusted contour using the found fm value.
+C = contourc(u, hs, fxy, [fm, fm]);
 Cu = C(1,2:end);
 Chs = C(2,2:end);
 
@@ -99,46 +99,36 @@ PM.coeffs = {
 PM.labels = {'Wind speed (m/s)';
     'Significant wave height (m)'};
 PM.gridCenterPoints = {0.05:0.1:50; 0.05:0.1:30};
-[fcnormal, uHd, hsHd] = computeHdc(PM, alpha, PM.gridCenterPoints, 0);
-C = contourc(u, hs, fxy, [fcnormal, fcnormal]);
+[fmnormal, uHd, hsHd] = computeHdc(PM, alpha, PM.gridCenterPoints, 0);
+
+% To achieve smoother contour coordinates, use Matlab's contour function.
+% instead of using computeHDC's hsHd{1}, tzHd{1}.
+C = contourc(u, hs, fxy, [fmnormal, fmnormal]);
 uHd = C(1,2:end);
 hsHd = C(2,2:end);
 
-
+% Plot the two contours, the mild regions, V50 and Hs50.
 fig = figure();
 pgon = polyshape(polygonU, polygonHs);
 plot(pgon);
 hold on
-xlabel('Wind speed (m/s)');
-ylabel('Significant wave height (m)');
-
-% Plot the normal HD contour. To have a smoother plot, use Matlab's contour
-% function.
-%plot(uHd, hsHd, '-b', 'linewidth', 2)
-contour(u, hs, fxy, [fcnormal, fcnormal], '-b', 'linewidth', 2);
-
-
-% Plot the adjusted HD contour.
+contour(u, hs, fxy, [fmnormal, fmnormal], '-b', 'linewidth', 2);
 plot(CuRel, ChsRel, '-r', 'linewidth', 2)
 plot(Cu, Chs, '--r')
-
-% Plot the univariate return values.
 UWbl = ExponentiatedWeibull(10.0, 2.42, 0.761);
-Un = UWbl.icdf(1 - alpha);
-plot([Un, Un,], [0, max(hs)], '--k');
+V50 = UWbl.icdf(1 - alpha);
+plot([V50, V50,], [0, max(hs)], '--k');
 fun = @(hs) integral2(funfxy, 0, 50, 0, hs, 'RelTol', 1e-16) - (1 - alpha);
 startValue = 20;
-Hsn = fzero(fun, startValue);
-plot([0 max(u)], [Hsn, Hsn], '--k');
-
-
+Hs50 = fzero(fun, startValue);
+plot([0 max(u)], [Hs50, Hs50], '--k');
+xlabel('Wind speed (m/s)');
+ylabel('Significant wave height (m)');
 legend({'Mild region', 'Normal HD contour', ...
     'Adjusted HD contour', 'Boarder of HD region within the mild region', ...
     'Marginal return values V_{50} and H_{s50}'}, ...
     'location', 'southoutside', 'NumColumns', 2);
 legend box off
-
 xlim([0 35]);
 ylim([0 18]);
-
 title([num2str(tr) '-yr environmental contours (alpha=' num2str(alpha) ')']);
