@@ -44,24 +44,20 @@ end
 %figure
 %contour(tz, hs, fxy', [10^-10 10^-9 10^-8 10^-7 10^-6 10^-5 10^-4 10^-4 10^-3 10^-2])
 
-c = contourc(tz, hs, fxy', [10^-9 10^-9]);
-bLeft = [c(1,2:floor(length(c)/2)); c(2,2:floor(length(c)/2))];
-bRight = [c(1,floor(length(c)/2):end); c(2,floor(length(c)/2):end)];
-bRight = flipud(bRight')';
-minTz = min(bLeft(1,:));
+CC = contourc(tz, hs, fxy', [10^-9 10^-9]);
 for i = 1 : length(hsThresholds)
-    hsThreshold = hsThresholds(i);
-    bL = [bLeft(1, bLeft(2,:)<hsThreshold); bLeft(2, bLeft(2,:)<hsThreshold)];
-    bL = flipud(bL')';
-    bL = [bL(1,:), minTz; bL(2,:), 0];
-    bR = [bRight(1, bRight(2,:)<hsThreshold); bRight(2, bRight(2,:)<hsThreshold)];
-    [maxTz, idx] = max(bR(1,:));
-    bRMinHs = bR(2, idx);
-    bR = [bR(1, bR(2,:) >= bRMinHs); bR(2, bR(2,:) >= bRMinHs)];
-    bR = [maxTz, bR(1,:); 0, bR(2,:)];
-    polygonHs = [0     bR(2,:) bL(2,:)];
-    polygonTz = [minTz bR(1,:) bL(1,:)];
-
+    hsThreshold = hsThresholds(i);  
+    RM = [CC(1, CC(2,:) < hsThreshold); CC(2, CC(2,:) < hsThreshold)];
+    polygonHs = RM(2, :);
+    polygonTz = RM(1, :);
+    [mx, idx] = max(polygonHs);
+    polygonHs = flip(circshift(polygonHs, -1 * idx));
+    polygonTz = flip(circshift(polygonTz, -1 * idx));
+    if polygonTz(1) > 2 * polygonTz(2)
+        polygonTz = circshift(polygonTz, -1);
+        polygonHs = circshift(polygonHs, -1);
+    end
+    
     [P, hsInside, tzInside] = unionRhdRm(HS, TZ, fxy, 0, polygonHs, polygonTz);
     disp(['1 - integrating over the whole variable space should yield 0 and was ' num2str(1 - P)]);
 
@@ -78,10 +74,8 @@ for i = 1 : length(hsThresholds)
     CtzRel = Ctz(~isInRm);
     
     % Add the mild region's boundary.
-    TzMildRUpper = [CtzRel(end) : -0.5 : polygonTz(4) polygonTz(4)];
-    HsMildRUpper = zeros(1, length(TzMildRUpper)) + polygonHs(4);
-    adjustedCtz = [minTz bR(1,:) CtzRel bL(1,:)];
-    adjustedChs = [0     bR(2,:) ChsRel bL(2,:)];
+    adjustedCtz = [CtzRel polygonTz CtzRel(1)];
+    adjustedChs = [ChsRel polygonHs ChsRel(1)];
 
     % Now calculate a "normal HD contour" using the compute-hdc software
     % package.

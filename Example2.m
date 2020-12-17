@@ -24,15 +24,6 @@ uCell = u(1 : end - 1) + (u(2) - u(1)) / 2;
 hsCell = hs(1 : end - 1) + (hs(2) - hs(1)) / 2;
 [UCELL, HSCELL] = meshgrid(uCell, hsCell);
 
-v_in = 3;
-V50 = 28.6;
-Hs50 = 13.87;
-hsMedian = @(v) 0.488 + 0.0114 * v.^2.03;
-polygonU_Mid  = [V50, floor(V50) : -1 : v_in];
-polygonHs_Mid = hsMedian(polygonU_Mid);
-polygonU =  [0 V50  polygonU_Mid   v_in      0       ];
-polygonHs = [0 0    polygonHs_Mid  0.5*Hs50  0.5*Hs50];
-
 disp('Evaluating fxy in the variable space ...')
 fxy = pdfU10Hs(U, HS);
 if DO_USE_FXBAR == 1
@@ -57,10 +48,20 @@ if DO_USE_FXBAR == 1
     HS = HSCELL;
 end
 
-
 %figure
 %contour(u, hs, fxy, [10^-8 10^-7 10^-6 10^-5 10^-4 10^-4 10^-3 10^-2])
 
+v_in = 3;
+CC = contourc(u, hs, fxy, [10^-9 10^-9]);
+CCpiece = [CC(1,CC(1,:) < v_in); CC(2,CC(1,:) < v_in)];
+CCpiece = CCpiece(:, 2:end); % First value is an artifact
+V50 = 28.6;
+Hs50 = 13.87;
+hsMedian = @(v) 0.488 + 0.0114 * v.^2.03;
+polygonU_Mid  = [V50, floor(V50) : -1 : v_in];
+polygonHs_Mid = hsMedian(polygonU_Mid);
+polygonU =  [0 V50  polygonU_Mid   CCpiece(1, :)];
+polygonHs = [0 0    polygonHs_Mid  CCpiece(2, :)];
 
 [P, uInside, hsInside] = unionRhdRm(U, HS, fxy, 0, polygonU, polygonHs);
 disp(['1 - integrating over the whole variable space should yield 0 and was ' num2str(1 - P)])
@@ -79,8 +80,8 @@ Chs = C(2,2:end);
 isInRm = inpolygon(Cu, Chs, polygonU, polygonHs);
 CuRel = Cu(~isInRm);
 ChsRel = Chs(~isInRm);
-CuRel = [polygonU(1) polygonU(2) CuRel polygonU(end-1) polygonU(end) polygonU(1)];
-ChsRel = [polygonHs(1) polygonHs(2) ChsRel polygonHs(end-1) polygonHs(end) polygonHs(1)];
+CuRel = [polygonU(1) polygonU(2) CuRel CCpiece(1, :) polygonU(1)];
+ChsRel = [polygonHs(1) polygonHs(2) ChsRel CCpiece(2, :) polygonHs(1)];
 
 % Now calculate a "normal HD contour" using the compute-hdc software
 % package.
