@@ -108,9 +108,22 @@ C = contourc(u, hs, fxy, [fmnormal, fmnormal]);
 uHd = C(1,2:end);
 hsHd = C(2,2:end);
 
+% Plot the mild region with a Monte Carlo sample.
+figRM = figure();
+hold on
+[uMC, hsMC] = drawSampleU10Hs(100000);
+scatter(uMC, hsMC, '.k')
+pgon = polyshape(polygonU, polygonHs);
+plot(pgon);
+xlim([0 30]);
+ylim([0 14]);
+xlabel('Wind speed (m s^{-1})');
+ylabel('Significant wave height (m)');
+set(figRM, 'renderer', 'painter')
+
+
 % Plot the two contours, the mild regions, V50 and Hs50.
 fig = figure();
-pgon = polyshape(polygonU, polygonHs);
 plot(pgon);
 hold on
 contour(u, hs, fxy, [fmnormal, fmnormal], '-b', 'linewidth', 2);
@@ -123,7 +136,7 @@ fun = @(hs) integral2(funfxy, 0, 50, 0, hs, 'RelTol', 1e-16) - (1 - alpha);
 startValue = 20;
 Hs50 = fzero(fun, startValue);
 plot([0 max(u)], [Hs50, Hs50], '--k');
-xlabel('Wind speed (m/s)');
+xlabel('Wind speed (m s^{-1})');
 ylabel('Significant wave height (m)');
 legend({'Mild region', 'Normal HD contour', ...
     'Adjusted HD contour', 'Boarder of HD region within the mild region', ...

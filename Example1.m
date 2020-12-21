@@ -1,10 +1,12 @@
 DO_USE_FXBAR = 1;
 DO_FULL_SEA_STATE = 0;
 
-hsThresholds = [2 : 2 : 14]; % Mild region's upper Hs thresholds.
+
 tr = 50; % Return period in years.
 ts = 6; % Sea state duration in hours.
 alpha = 1 / (tr * 365.25 * 24 / ts);
+Hsn = wblinv(1 - alpha, 2.776, 1.471) + 0.8888;
+hsThresholds = [2 : 2 : 14, Hsn]; % Mild region's upper Hs thresholds.
 tzToTpFactor = 1.2796;
 
 thisFolderName = '2020-paper-contour-conservatism';
@@ -43,6 +45,22 @@ end
 
 %figure
 %contour(tz, hs, fxy', [10^-10 10^-9 10^-8 10^-7 10^-6 10^-5 10^-4 10^-4 10^-3 10^-2])
+
+figRM = figure();
+[hsMC, tzMC] = drawSampleHsTz(100000);
+for i = 1 : length(hsThresholds)
+    subplot(2, length(hsThresholds)/2, i)
+    scatter(tzMC, hsMC, '.k')
+    xlim([0 18]);
+    ylim([0 18]);
+    hold on
+    if mod(i, length(hsThresholds)/2) == 1
+        ylabel('{\it H_s} (m)');
+    end
+    if i > length(hsThresholds)/2
+        xlabel('{\it T_z} (s)');
+    end
+end
 
 CC = contourc(tz, hs, fxy', [10^-9 10^-9]);
 for i = 1 : length(hsThresholds)
@@ -110,9 +128,14 @@ for i = 1 : length(hsThresholds)
     rHdAdjusted = responseTwoPeaks(adjustedChs, tpAdjusted);
     [maxRAdjusted, iMaxAdjusted] = max(rHdAdjusted);
     
+    % Plot the mild region in the mild region figure
+    set(0, 'CurrentFigure', figRM);
+    subplot(2, length(hsThresholds)/2, i);
+    pgon = polyshape(polygonTz, polygonHs);
+    plot(pgon);
+    
     % Plot the two contours, the mild regions and Hs50.
     fig = figure();
-    pgon = polyshape(polygonTz, polygonHs);
     plot(pgon);
     hold on
     plot(tzHd, hsHd, '-b', 'linewidth', 2)
@@ -120,7 +143,6 @@ for i = 1 : length(hsThresholds)
     plot(Ctz, Chs, '--r')
     plot(adjustedCtz(iMaxAdjusted), adjustedChs(iMaxAdjusted), 'xr', ...
     'markersize', 10, 'linewidth', 2);
-    Hsn = wblinv(1 - alpha, 2.776, 1.471) + 0.8888;
     plot([0 max(tz)], [Hsn, Hsn], '--k');
     r = responseTwoPeaks(HS, TZ * tzToTpFactor);
     [C, h] = contour(tz, hs, r', [5 10 15 17 20 25 30 35 40], 'color', [0.5 0.5 0.5]);
@@ -173,7 +195,7 @@ end
 c = 2;
 method{i + c} = 'IFORM contour';
 mildRegionHsMax(i + c) = NaN;
-maxHs(i + c) = 15.2; % see 10.1016/j.marstruc.2020.102863;
+maxHs(i + c) = 15.23; % see 10.1016/j.marstruc.2020.102863;
 maxResponse(i + c)=  16.57; % see 10.1016/j.marstruc.2020.102863
 maxResponseHs(i + c) = NaN;
 maxResponseTp(i + c) = NaN;
