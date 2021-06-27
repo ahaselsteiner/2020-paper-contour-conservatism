@@ -21,7 +21,7 @@ PM.coeffs = {{2.776 1.471 0.8888};
                @(x1)0.0400 + 0.1748 * exp(-0.2243*x1)}
             };
 PM.labels = {'Significant wave height (m)';
-              'Zero-upcrossing period (s)'};
+              'Zero-up-crossing period (s)'};
 alpha = 1 / (50 * 365.25 * 24 / 6);
 [x1Array, x2Array] = computeIformContour(PM, alpha, 180, 0);
 tzToTpFactor = 1.2796;
@@ -38,10 +38,17 @@ rcap = 16.6;
 c = contour(tgrid, hgrid, rgrid, [rcap rcap], '-r');
 c = c(:,2:end);
 c = [c [tp(end); hs(end)]];
-h_failuresurface = patch(c(1,:), c(2,:), [1 0.5 0.5], 'DisplayName', 'Failure region');
-h_approximated = plot([0, 20], [18.3, 14.75], '--k', 'DisplayName', 'Approximated failure surface');
+h_failure_region = patch(c(1,:), c(2,:), [1 0 0], ...
+    'DisplayName', 'True failure region', 'FaceAlpha', 0.5, 'LineStyle', 'None');
+px = [0, 20];
+py = [18.3, 14.75];
+h_approximated = plot(px, py, '-k');
+h_approx_region = patch([px 20 0], [py 20 20], [0 0 0], 'FaceAlpha', 0.3, ...
+    'LineStyle', 'None', 'DisplayName', 'Approximated failure region');
+hatchfill2(h_approx_region, 'cross');
 xlabel(PM.labels{2});
 ylabel(PM.labels{1});
+box off
 
 % Wind-wave contour.
 nexttile;
@@ -55,7 +62,7 @@ PM.coeffs = {
     { 
     @(x1) (0.488 + 0.0114 * x1^2.03) / (2.0445^(1 / (0.714 + 1.70 / (1 + exp(-0.304 * (x1 - 8.77))))));
     @(x1) 0.714 + 1.70 / (1 + exp(-0.304 * (x1 - 8.77)));
-    2}
+    5}
     };
 PM.labels = {'Wind speed (m s^{-1})';
     'Significant wave height (m)'};
@@ -80,14 +87,19 @@ sgrid = 0.012 + 0.021 ./ (1 + exp(-0.3*(vgrid - 10)));
 tgrid = sqrt(2 * pi * hgrid ./ (9.81 * sgrid));
 R = ResponseEmulator10mWaterDepth;
 rgrid = R.ICDF1hr(vgrid, hgrid, tgrid, 0.5);
-rcap = 113.3 * 10^6;
+rcap = 121 * 10^6;
 c = contour(vgrid, hgrid, rgrid, [rcap rcap], '-r');
 c = c(:,2:end);
 c = [[v(1); hs(end)] c [v(end); hs(end)]];
-patch(c(1,:), c(2,:), [1 0.5 0.5]);
-plot([14.9, 40], [20, 10.9], '--k');
+patch(c(1,:), c(2,:), [1 0 0], 'FaceAlpha', 0.5, 'LineStyle', 'None');
+px = [17.0, 40];
+py = [20, 12.1];
+plot(px, py, '-k');
+h = patch([px 40 0], [py 20 20], [0 0 0], 'FaceAlpha', 0.3, 'LineStyle', 'None');
+hatchfill2(h, 'cross');
 xlabel(PM.labels{1});
 ylabel(PM.labels{2});
+box off
 
 % Hx-Hy contour.
 nexttile;
@@ -107,16 +119,22 @@ rgrid = directionalResponse(hxgrid, hygrid, phi, a, b);
 rcap = 10.31;
 c = contour(hxgrid, hygrid, rgrid, [rcap rcap], '-r');
 c = c(:,2:end);
-patch([min(hx) max(hx) max(hx) min(hx)], [max(hy) max(hy) min(hy) min(hy)], [1 0.5 0.5]);
-patch(c(1,:), c(2,:), [1 1 1]);
+patch([min(hx) max(hx) max(hx) min(hx)], [max(hy) max(hy) min(hy) min(hy)], ...
+    [1 0 0], 'FaceAlpha', 0.5, 'LineStyle', 'None');
+patch(c(1,:), c(2,:), [1 1 1], 'LineStyle', 'None');
 IFORM_hx_hy = readmatrix('iform_hx_hy.txt');
 plot(IFORM_hx_hy(:,1), IFORM_hx_hy(:,2), '-b', 'linewidth', lw);
-plot([-6.7, 9], [9, 1.5], '--k');
+px = [-6.7, 9];
+py = [9, 1.5];
+plot(px, py, '-k');
+h = patch([px 9], [py 9], [0 0 0], 'FaceAlpha', 0.3, 'LineStyle', 'None');
+hatchfill2(h, 'cross');
 xlabel('x-component of significant wave height (m)');
 ylabel('y-component of significant wave height (m)');
+box off
 
 % Create a Legend with the data from multiple axes
-lg = legend(nexttile(1), [h_contour, h_failuresurface, h_approximated], ...
+lg = legend(nexttile(1), [h_contour, h_failure_region, h_approx_region], ...
      'Orientation', 'Horizontal');
 lg.Layout.Tile = 'north';
 
